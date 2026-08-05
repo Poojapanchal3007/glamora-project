@@ -1,27 +1,62 @@
+import { useMemo, useState } from 'react'
+import './App.css'
+
+const initialServices = [
+  { id: 1, name: 'Glow facial', price: '€40', time: '60 min', description: 'A deeply nourishing facial for fresh, radiant skin.' },
+  { id: 2, name: 'Eyebrow threading', price: '€12', time: '20 min', description: 'Beautifully shaped brows with a precise, gentle finish.' },
+  { id: 3, name: 'Waxing', price: 'from €30', time: '45 min', description: 'Comfortable, professional hair removal for silky-smooth skin.' },
+]
+const initialBookings = [
+  { id: 1, name: 'Anna Korhonen', email: 'anna@example.com', phone: '+358 40 123 4567', service: 'Glow facial', date: '2026-08-12', time: '10:00', status: 'Confirmed' },
+  { id: 2, name: 'Sofia Laine', email: 'sofia@example.com', phone: '+358 45 987 6543', service: 'Eyebrow threading', date: '2026-08-12', time: '15:00', status: 'New' },
+  { id: 3, name: 'Emma Virtanen', email: 'emma@example.com', phone: '+358 50 555 9090', service: 'Waxing', date: '2026-08-14', time: '11:30', status: 'Confirmed' },
+]
+const times = ['10:00', '11:30', '13:00', '15:00', '16:30', '18:00']
+const salonEmail = import.meta.env.VITE_SALON_EMAIL || 'your-salon-email@example.com'
+
 function App() {
-  return (
-    <div style={{ padding: "40px", textAlign: "center" }}>
-      <h1>✨ Glamora by Pooja ✨</h1>
+  const [services, setServices] = useState(initialServices)
+  const [bookings, setBookings] = useState(initialBookings)
+  const [view, setView] = useState('website')
+  const [selectedService, setSelectedService] = useState(initialServices[0].name)
+  const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+  const [assistantPrompt, setAssistantPrompt] = useState('')
+  const [assistantReply, setAssistantReply] = useState('Hi Pooja! I can help you review your day, find a customer, or create a booking. What would you like to do?')
 
-      <h3>Home Based Beauty Salon</h3>
-
-      <p>Oulu, Finland</p>
-
-      <hr />
-
-      <h2>Services</h2>
-
-      <ul style={{ listStyle: "none" }}>
-        <li>Facial - €40</li>
-        <li>Eyebrow Threading - €12</li>
-        <li>Waxing - €30</li>
-      </ul>
-
-      <button>
-        Book Appointment
-      </button>
-    </div>
-  );
+  const selectService = (service) => { setSelectedService(service); document.querySelector('#booking')?.scrollIntoView({ behavior: 'smooth' }) }
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const client = { id: Date.now(), name: form.get('name'), email: form.get('email'), phone: form.get('phone'), service: selectedService, date, time, status: 'New' }
+    setBookings((current) => [...current, client])
+    const subject = encodeURIComponent(`Booking request: ${selectedService}`)
+    const body = encodeURIComponent(`New booking request for Glamora by Pooja\n\nName: ${client.name}\nEmail: ${client.email}\nPhone: ${client.phone || 'Not supplied'}\nService: ${client.service}\nDate: ${client.date}\nTime: ${client.time}\nNotes: ${form.get('notes') || 'None'}`)
+    window.location.href = `mailto:${salonEmail}?subject=${subject}&body=${body}`
+    setSubmitted(true)
+    event.currentTarget.reset()
+  }
+  const updateBooking = (id, status) => setBookings((current) => current.map((booking) => booking.id === id ? { ...booking, status } : booking))
+  const sendClientEmail = (booking) => { const subject = encodeURIComponent('Your Glamora appointment'); const body = encodeURIComponent(`Hi ${booking.name},\n\nThank you for booking with Glamora by Pooja. Your ${booking.service} appointment is scheduled for ${booking.date} at ${booking.time}.\n\nWarmly,\nPooja`); window.location.href = `mailto:${booking.email}?subject=${subject}&body=${body}` }
+  const addService = () => { const name = window.prompt('Service name'); if (!name) return; const price = window.prompt('Price (example: €35)'); setServices((current) => [...current, { id: Date.now(), name, price: price || 'Price on request', time: '45 min', description: 'A personalised Glamora treatment.' }]) }
+  const removeService = (id) => setServices((current) => current.filter((service) => service.id !== id))
+  const runAssistant = (event) => { event.preventDefault(); const question = assistantPrompt.toLowerCase(); const newBookings = bookings.filter((b) => b.status === 'New').length; if (question.includes('today') || question.includes('booking')) setAssistantReply(`You have ${bookings.length} bookings in this dashboard, including ${newBookings} new request${newBookings === 1 ? '' : 's'} awaiting confirmation. Your next sample appointment is Anna’s Glow facial at 10:00.`); else if (question.includes('service')) setAssistantReply(`You currently offer ${services.map((s) => s.name).join(', ')}. Open Services below to add, update, or remove a treatment.`); else if (question.includes('contact') || question.includes('message') || question.includes('email')) setAssistantReply('Open Bookings and select “Email client” beside any customer. I will prepare a polite confirmation message for you.'); else setAssistantReply('I can help with bookings, services, customer messages, and your calendar. Try asking “Show my bookings” or “How do I contact a client?”'); setAssistantPrompt('') }
+  return view === 'admin' ? <AdminDashboard bookings={bookings} services={services} onWebsite={() => setView('website')} onUpdateBooking={updateBooking} onEmail={sendClientEmail} onAddService={addService} onRemoveService={removeService} prompt={assistantPrompt} setPrompt={setAssistantPrompt} reply={assistantReply} onAsk={runAssistant} /> : <Website services={services} selectedService={selectedService} setSelectedService={setSelectedService} selectService={selectService} date={date} setDate={setDate} time={time} setTime={setTime} onSubmit={handleSubmit} submitted={submitted} onAdmin={() => setView('admin')} />
 }
 
-export default App;
+function Website({ services, selectedService, setSelectedService, selectService, date, setDate, time, setTime, onSubmit, submitted, onAdmin }) {
+  return <main><nav className="nav wrap" aria-label="Main navigation"><a className="brand" href="#top">GLAMORA<span>.</span></a><div className="nav-links"><a href="#services">Services</a><a href="#about">About</a><button className="admin-link" onClick={onAdmin}>Salon manager</button><a className="nav-book" href="#booking">Book now</a></div></nav>
+    <section className="hero wrap" id="top"><div className="hero-copy"><p className="eyebrow">Home-based beauty salon · Oulu</p><h1>Feel like your<br /><em>best self.</em></h1><p className="hero-text">Thoughtful beauty rituals in a calm, personal space. Take a little time for you.</p><a className="button" href="#booking">Book your appointment <span>→</span></a></div><div className="hero-art" aria-label="Glamora salon decoration"><div className="sun"></div><div className="arch"></div><div className="vase"><i></i><b></b><b></b><b></b></div><p>Glamora<br /><small>by Pooja</small></p></div></section>
+    <section className="services-section" id="services"><div className="wrap"><p className="eyebrow">A little self-care</p><div className="section-title"><h2>Services made for you</h2><p>Every treatment is tailored with care, so you leave feeling relaxed and confident.</p></div><div className="service-grid">{services.map((service, index) => <article className="service-card" key={service.id}><div className={`service-image image-${(index % 3) + 1}`}><span>{index % 3 === 0 ? '✦' : index % 3 === 1 ? '⌇' : '◒'}</span></div><div className="service-info"><p className="service-meta">{service.time} <span>{service.price}</span></p><h3>{service.name}</h3><p>{service.description}</p><button onClick={() => selectService(service.name)}>Choose service <span>→</span></button></div></article>)}</div></div></section>
+    <section className="about wrap" id="about"><div><p className="eyebrow">A warm welcome</p><h2>Beauty feels better when it feels personal.</h2></div><p>Hi, I’m Pooja. Glamora is my peaceful home salon in Oulu, created to give every client a comfortable, unhurried experience. I can’t wait to welcome you.</p></section>
+    <section className="booking wrap" id="booking"><div className="booking-intro"><p className="eyebrow">Reserve your moment</p><h2>Let’s find a time<br />that feels good.</h2><p>Choose your treatment and preferred time. I’ll confirm your appointment personally by email.</p><p className="booking-note">Appointments in Oulu, Finland</p></div><form onSubmit={onSubmit}><label>Choose a service<select value={selectedService} onChange={(e) => setSelectedService(e.target.value)}>{services.map((s) => <option key={s.id}>{s.name}</option>)}</select></label><div className="form-row"><label>Date<input type="date" value={date} min={new Date().toISOString().split('T')[0]} onChange={(e) => setDate(e.target.value)} required /></label><label>Available time<select value={time} onChange={(e) => setTime(e.target.value)} required><option value="">Select</option>{times.map((t) => <option key={t}>{t}</option>)}</select></label></div><div className="form-row"><label>Your name<input name="name" placeholder="Your name" required /></label><label>Email address<input name="email" type="email" placeholder="you@email.com" required /></label></div><label>Phone number<input name="phone" type="tel" placeholder="Optional" /></label><label>Anything I should know?<textarea name="notes" rows="3" placeholder="Tell me about your preferences, if any."></textarea></label><button className="button submit" type="submit">Send booking request <span>→</span></button>{submitted && <p className="form-success">Your email app has opened with the booking details. Send the message and I’ll be in touch soon.</p>}</form></section>
+    <footer><div className="wrap"><a className="brand" href="#top">GLAMORA<span>.</span></a><p>Home-based beauty salon in Oulu, Finland</p><p>© {new Date().getFullYear()} Glamora by Pooja</p></div></footer></main>
+}
+
+function AdminDashboard({ bookings, services, onWebsite, onUpdateBooking, onEmail, onAddService, onRemoveService, prompt, setPrompt, reply, onAsk }) {
+  const confirmed = useMemo(() => bookings.filter((b) => b.status === 'Confirmed').length, [bookings])
+  return <main className="manager"><header className="manager-head"><div><button className="back" onClick={onWebsite}>← View salon website</button><h1>Salon manager</h1><p>Welcome back, Pooja. Here’s your booking overview.</p></div><div className="manager-mark">G<span>.</span></div></header><section className="manager-grid"><aside className="ai-panel"><p className="eyebrow">Glamora assistant</p><h2>Your calm, helpful<br />salon co-pilot.</h2><div className="ai-reply">✦ <span>{reply}</span></div><form className="ai-form" onSubmit={onAsk}><input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Ask about your salon…" /><button type="submit">Ask →</button></form><div className="prompt-chips"><button onClick={() => setPrompt('Show my bookings')}>My bookings</button><button onClick={() => setPrompt('How do I contact a client?')}>Contact a client</button></div></aside><section className="dashboard-content"><div className="stats"><div><span>All bookings</span><strong>{bookings.length}</strong></div><div><span>Confirmed</span><strong>{confirmed}</strong></div><div><span>Services</span><strong>{services.length}</strong></div></div><div className="dash-card"><div className="card-title"><div><p className="eyebrow">Calendar</p><h2>Upcoming bookings</h2></div><span className="small-label">Appointment list</span></div>{bookings.length === 0 ? <p className="empty">No bookings yet.</p> : <div className="booking-list">{bookings.map((booking) => <div className="booking-row" key={booking.id}><div className="booking-date"><b>{booking.date.slice(-2)}</b><span>{new Date(`${booking.date}T12:00`).toLocaleDateString('en', { month: 'short' })}</span></div><div className="booking-client"><b>{booking.time} · {booking.name}</b><span>{booking.service} · {booking.email}</span></div><span className={`status ${booking.status.toLowerCase()}`}>{booking.status}</span><div className="row-actions"><button onClick={() => onUpdateBooking(booking.id, booking.status === 'Confirmed' ? 'New' : 'Confirmed')}>{booking.status === 'Confirmed' ? 'Mark new' : 'Confirm'}</button><button onClick={() => onEmail(booking)}>Email client</button></div></div>)}</div>}</div><div className="dash-card services-manager"><div className="card-title"><div><p className="eyebrow">Your menu</p><h2>Services & pricing</h2></div><button className="add-service" onClick={onAddService}>+ Add service</button></div>{services.map((service) => <div className="admin-service" key={service.id}><div><b>{service.name}</b><span>{service.time} · {service.price}</span></div><button onClick={() => onRemoveService(service.id)}>Remove</button></div>)}</div></section></section></main>
+}
+
+export default App
