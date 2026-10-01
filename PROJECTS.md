@@ -7,6 +7,7 @@ Browse the public repositories and team academic project linked below.
 | Project | Overview | Technologies in the project |
 |---|---|---|
 | [Academic Copilot](https://github.com/Peppi-ai-summerproject/academic-copilot) | Tutor-facing academic support backend; team academic project. | Python, FastAPI, PostgreSQL, MCP, RAG |
+| [Financial Management](https://github.com/FinancialManagement1/fm-frontend) | Team academic project: financial management frontend. | See repository for implementation details |
 | [Glamora](https://github.com/Poojapanchal3007/glamora-project) | Salon frontend and backend starter. | React, JavaScript, Python, FastAPI |
 | [Express API Testing](https://github.com/Poojapanchal3007/express-jest-supertest-starter) | Educational API integration testing. | Node.js, Express, Jest, Supertest |
 | [Android To-Do App](https://github.com/Poojapanchal3007/TODO-2) | Android coursework project with a Jetpack Compose interface, ViewModel support and Retrofit dependencies. | Kotlin, Jetpack Compose |
